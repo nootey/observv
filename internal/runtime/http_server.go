@@ -6,6 +6,7 @@ import (
 	"github.com/nootey/observv/internal/bootstrap"
 	"github.com/nootey/observv/internal/http"
 	"github.com/nootey/observv/pkg/config"
+	"github.com/nootey/observv/pkg/database"
 	"go.uber.org/zap"
 	"os/signal"
 	"syscall"
@@ -27,7 +28,26 @@ func (rt *HTTPServerRuntime) Run(context context.Context) error {
 	ctx, stop := signal.NotifyContext(context, syscall.SIGTERM, syscall.SIGINT)
 	defer stop()
 
-	container := bootstrap.NewContainer(rt.Config)
+	if err := database.EnsureDatabaseExists(rt.Config); err != nil {
+		rt.Logger.Error("Database creation failed", zap.Error(err))
+		return fmt.Errorf("failed to ensure database exists: %w", err)
+	}
+
+	dbClient, err := database.ConnectToDatabase(rt.Config, true)
+	if err != nil {
+		rt.Logger.Error("Database connection failed", zap.Error(err))
+		return fmt.Errorf("database connection failed: %w", err)
+	}
+	defer database.DisconnectDatabase()
+	rt.Logger.Info("Successfully connected to the database")
+
+	err = database.MigrateAndSeed(rt.Config, dbClient, rt.Logger)
+	if err != nil {
+		rt.Logger.Error("Initial database migration failed", zap.Error(err))
+		return fmt.Errorf("initial database migration failed: %w", err)
+	}
+
+	container := bootstrap.NewContainer(rt.Config, dbClient)
 	httpLogger := rt.Logger.Named("http").With(zap.String("component", "HTTP"))
 	httpServer := http.NewServer(container, httpLogger)
 	go httpServer.Start()

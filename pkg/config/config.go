@@ -8,10 +8,15 @@ import (
 )
 
 type Config struct {
-	DatabaseName string
-	Host         string
-	HttpPort     string
-	Release      bool
+	Host             string
+	HttpPort         string
+	Release          bool
+	DBHost           string
+	DBUser           string
+	DBPassword       string
+	DBPort           int
+	Database         string
+	RootUserPassword string
 }
 
 func LoadConfig() *Config {
@@ -33,10 +38,20 @@ func LoadConfig() *Config {
 		host = "0.0.0.0"
 	}
 
+	DBPort, err := strconv.Atoi(os.Getenv("DB_PORT"))
+	if err != nil {
+		log.Fatalf("Invalid DB port: %v", err)
+	}
+
 	return &Config{
-		DatabaseName: os.Getenv("DATABASE_NAME"),
-		Host:         os.Getenv("HOST"),
-		HttpPort:     os.Getenv("HTTP_PORT"),
-		Release:      release,
+		Host:             os.Getenv("HOST"),
+		HttpPort:         os.Getenv("HTTP_PORT"),
+		DBHost:           os.Getenv("DB_HOST"),
+		DBUser:           os.Getenv("DB_USER"),
+		DBPassword:       os.Getenv("DB_PASSWORD"),
+		DBPort:           DBPort,
+		Database:         os.Getenv("DATABASE"),
+		Release:          release,
+		RootUserPassword: os.Getenv("ROOT_USER_PASSWORD"),
 	}
 }
