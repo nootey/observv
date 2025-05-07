@@ -3,6 +3,8 @@ package http
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/nootey/observv/internal/bootstrap"
+	"github.com/nootey/observv/internal/http/endpoints"
+	"github.com/nootey/observv/internal/http/handlers"
 	"net/http"
 )
 
@@ -30,5 +32,12 @@ func (r *RouteInitializerHTTP) InitEndpoints() {
 }
 
 func (r *RouteInitializerHTTP) initRoutes(api *gin.RouterGroup) {
+	userHandler := handlers.NewUserHandler(r.Container.UserRepo)
 
+	// Public routes
+	publicGroup := api.Group("")
+	{
+		publicUserRoutes := publicGroup.Group("/users")
+		endpoints.UserEndpoints(publicUserRoutes, userHandler)
+	}
 }
