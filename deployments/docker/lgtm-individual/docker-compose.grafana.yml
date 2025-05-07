@@ -1,0 +1,19 @@
+services:
+  grafana:
+    image: grafana/grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana-storage:/var/lib/grafana
+    networks:
+      - lgtm-net
+
+volumes:
+  grafana-storage:
+
+networks:
+  lgtm-net:
+    external: true
