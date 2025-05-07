@@ -6,6 +6,8 @@ import (
 	ginzap "github.com/gin-contrib/zap"
 	"github.com/gin-gonic/gin"
 	"github.com/nootey/observv/internal/bootstrap"
+	"github.com/nootey/observv/internal/middleware"
+	ginprometheus "github.com/zsais/go-gin-prometheus"
 	"go.uber.org/zap"
 	"net/http"
 	"time"
@@ -67,6 +69,15 @@ func NewRouter(container *bootstrap.Container) *gin.Engine {
 
 	r.Use(gin.Recovery())
 
+	// Register middleware
+	r.Use(gin.Recovery())
+	r.Use(middleware.PrometheusMiddleware())
+
+	// Prometheus endpoint
+	prometheus := ginprometheus.NewPrometheus("http")
+	prometheus.Use(r)
+
+	// Initialize routes
 	routeInitializer := NewRouteInitializerHTTP(r, container)
 	routeInitializer.InitEndpoints()
 
