@@ -41,12 +41,6 @@ func (rt *HTTPServerRuntime) Run(context context.Context) error {
 	defer database.DisconnectDatabase()
 	rt.Logger.Info("Successfully connected to the database")
 
-	err = database.MigrateAndSeed(rt.Config, dbClient, rt.Logger)
-	if err != nil {
-		rt.Logger.Error("Initial database migration failed", zap.Error(err))
-		return fmt.Errorf("initial database migration failed: %w", err)
-	}
-
 	container := bootstrap.NewContainer(rt.Config, dbClient)
 	httpLogger := rt.Logger.Named("http").With(zap.String("component", "HTTP"))
 	httpServer := http.NewServer(container, httpLogger)

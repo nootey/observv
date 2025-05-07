@@ -13,6 +13,7 @@ var rootCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(httpServerCmd)
+	rootCmd.AddCommand(seedCmd)
 }
 
 func Execute() {

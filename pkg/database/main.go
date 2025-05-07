@@ -3,9 +3,7 @@ package database
 import (
 	"database/sql"
 	"fmt"
-	"github.com/nootey/observv/internal/models"
 	"github.com/nootey/observv/pkg/config"
-	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
@@ -20,7 +18,7 @@ var (
 	once    sync.Once
 )
 
-func hashAndSaltPassword(password string) (string, error) {
+func HashAndSaltPassword(password string) (string, error) {
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return "", err
@@ -100,39 +98,5 @@ func EnsureDatabaseExists(cfg *config.Config) error {
 	if err != nil {
 		return fmt.Errorf("failed to create database: %w", err)
 	}
-	return nil
-}
-
-func MigrateAndSeed(cfg *config.Config, db *gorm.DB, logger *zap.Logger) error {
-	// --- AutoMigrate and create default user ---
-	if err := db.AutoMigrate(&models.User{}); err != nil {
-		logger.Error("AutoMigrate failed", zap.Error(err))
-		return fmt.Errorf("failed to run auto-migration: %w", err)
-	}
-
-	// Check if default admin user exists
-	var count int64
-	db.Model(&models.User{}).Where("username = ?", "admin").Count(&count)
-	if count == 0 {
-
-		hashedPass, err := hashAndSaltPassword(cfg.RootUserPassword)
-		if err != nil {
-			logger.Error("Failed to hash root user password", zap.Error(err))
-			return fmt.Errorf("failed to hash root user password: %w", err)
-		}
-
-		admin := models.User{
-			Username: "admin",
-			Password: hashedPass,
-			Email:    "admin@observv.me",
-			Role:     "admin",
-		}
-		if err := db.Create(&admin).Error; err != nil {
-			logger.Error("Failed to create default admin user", zap.Error(err))
-			return fmt.Errorf("failed to create default admin user: %w", err)
-		}
-		logger.Info("Default admin user created")
-	}
-
 	return nil
 }
