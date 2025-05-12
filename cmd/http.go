@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/nootey/observv/internal/runtime"
 	"github.com/nootey/observv/pkg/config"
+	"github.com/nootey/observv/pkg/logging"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 )
@@ -15,7 +16,7 @@ var httpServerCmd = &cobra.Command{
 
 		ctx := cmd.Context()
 
-		logger, err := zap.NewProduction()
+		logger, err := logging.NewLogger()
 		if err != nil {
 			return fmt.Errorf("failed to initialize logger: %w", err)
 		}
