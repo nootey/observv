@@ -1,0 +1,12 @@
+services:
+  loki:
+    image: grafana/loki:latest
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - lgtm-net
+
+networks:
+  lgtm-net:
+    external: true
