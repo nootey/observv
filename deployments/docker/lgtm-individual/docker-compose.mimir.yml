@@ -1,0 +1,18 @@
+services:
+  mimir:
+    image: grafana/mimir:latest
+    ports:
+      - "9009:9009"  # HTTP API
+    command: -config.file=/etc/mimir/mimir.yaml
+    volumes:
+    - ../../../pkg/config/mimir:/etc/mimir
+    - mimir-data:/data
+    networks:
+      - lgtm-net
+
+volumes:
+  mimir-data:
+
+networks:
+  lgtm-net:
+    external: true
