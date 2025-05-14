@@ -13,6 +13,7 @@ ingester:
   ring:
     kvstore:
       store: inmemory
+    replication_factor: 1
 
 blocks_storage:
   backend: filesystem
