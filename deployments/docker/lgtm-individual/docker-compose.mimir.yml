@@ -5,7 +5,8 @@ services:
       - "9009:9009"  # HTTP API
     command: -config.file=/etc/mimir/mimir.yaml
     volumes:
-    - ../../../pkg/config/mimir:/etc/mimir
+    - ../../../pkg/config/mimir/config:/etc/mimir
+    - ../../../pkg/config/mimir/rules:/data/rules
     - mimir-data:/data
     networks:
       - lgtm-net
@@ -16,3 +17,4 @@ volumes:
 networks:
   lgtm-net:
     external: true
+

@@ -1,0 +1,19 @@
+groups:
+  - name: test-alerts
+    interval: 30s
+    rules:
+      - alert: HighRequestRate
+        expr: rate(http_requests_total[1m]) > 0.001
+        for: 3s
+        labels:
+          severity: warning
+        annotations:
+          summary: "High request rate detected"
+
+      - alert: HighLatency
+        expr: histogram_quantile(0.9, rate(http_request_duration_seconds_bucket[1m])) > 1
+        for: 30s
+        labels:
+          severity: warning
+        annotations:
+          summary: "90th percentile HTTP request latency is too high"
