@@ -7,18 +7,21 @@ import (
 )
 
 type Container struct {
-	Config   *config.Config
-	DB       *gorm.DB
-	UserRepo *repositories.UserRepository
+	Config       *config.Config
+	DB           *gorm.DB
+	UserRepo     *repositories.UserRepository
+	TerminalRepo *repositories.TerminalRepository
 }
 
 func NewContainer(cfg *config.Config, db *gorm.DB) *Container {
 
 	userRepo := repositories.NewUserRepository(db)
+	terminalRepo := repositories.NewTerminalRepository(db)
 
 	return &Container{
-		Config:   cfg,
-		DB:       db,
-		UserRepo: userRepo,
+		Config:       cfg,
+		DB:           db,
+		UserRepo:     userRepo,
+		TerminalRepo: terminalRepo,
 	}
 }

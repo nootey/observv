@@ -33,11 +33,15 @@ func (r *RouteInitializerHTTP) InitEndpoints() {
 
 func (r *RouteInitializerHTTP) initRoutes(api *gin.RouterGroup) {
 	userHandler := handlers.NewUserHandler(r.Container.UserRepo)
+	terminalHandler := handlers.NewTerminalHandler(r.Container.TerminalRepo)
 
 	// Public routes
 	publicGroup := api.Group("")
 	{
 		publicUserRoutes := publicGroup.Group("/users")
 		endpoints.UserEndpoints(publicUserRoutes, userHandler)
+
+		publicTerminalRoutes := publicGroup.Group("/terminals")
+		endpoints.TerminalEndpoints(publicTerminalRoutes, terminalHandler)
 	}
 }
