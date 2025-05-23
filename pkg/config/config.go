@@ -44,7 +44,7 @@ func LoadConfig() *Config {
 	}
 
 	return &Config{
-		Host:             os.Getenv("HOST"),
+		Host:             os.Getenv("HTTP_HOST"),
 		HttpPort:         os.Getenv("HTTP_PORT"),
 		DBHost:           os.Getenv("DB_HOST"),
 		DBUser:           os.Getenv("DB_USER"),
