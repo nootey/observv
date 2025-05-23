@@ -1,10 +1,8 @@
 package main
 
 import (
-	"fmt"
 	"github.com/nootey/observv/internal/runtime"
 	"github.com/nootey/observv/pkg/config"
-	"github.com/nootey/observv/pkg/logging"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 )
@@ -15,12 +13,7 @@ var httpServerCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 
 		ctx := cmd.Context()
-
-		logger, err := logging.NewLogger()
-		if err != nil {
-			return fmt.Errorf("failed to initialize logger: %w", err)
-		}
-		defer logger.Sync()
+		logger := ctx.Value("logger").(*zap.Logger)
 
 		cfg := config.LoadConfig()
 		logger.Info("Configuration loaded",

@@ -6,7 +6,6 @@ import (
 	"github.com/nootey/observv/internal/models"
 	"github.com/nootey/observv/pkg/config"
 	"github.com/nootey/observv/pkg/database"
-	"github.com/nootey/observv/pkg/logging"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -17,17 +16,15 @@ var seedCmd = &cobra.Command{
 	Short: "Run database seeders",
 	Args:  cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return runSeeders()
+
+		ctx := cmd.Context()
+		logger := ctx.Value("logger").(*zap.Logger)
+
+		return runSeeders(logger)
 	},
 }
 
-func runSeeders() error {
-
-	logger, err := logging.NewLogger()
-	if err != nil {
-		return fmt.Errorf("failed to initialize logger: %w", err)
-	}
-	defer logger.Sync()
+func runSeeders(logger *zap.Logger) error {
 
 	logger.Info("Starting database seeding")
 
@@ -47,39 +44,50 @@ func runSeeders() error {
 		return fmt.Errorf("failed to connect to MySQL: %v", err)
 	}
 
-	//Migrate the tables
-	if err := db.AutoMigrate(&models.User{}); err != nil {
-		logger.Error("Failed to auto-migrate User model", zap.Error(err))
-		return fmt.Errorf("failed to auto-migrate: %w", err)
-	}
-
-	// Check if the admin user already exists
-	var existing models.User
-	err = db.Where("username = ? AND email = ?", "admin", "admin@observv.me").First(&existing).Error
-	if err == nil {
-		logger.Info("Admin user already exists, skipping seeding")
-		return nil
-	}
-	if err != nil && err.Error() != "record not found" && !errors.Is(err, gorm.ErrRecordNotFound) {
-		logger.Error("Failed to query for existing admin user", zap.Error(err))
-		return fmt.Errorf("failed to query admin user: %w", err)
-	}
-
 	hashedPass, err := database.HashAndSaltPassword(cfg.RootUserPassword)
 	if err != nil {
 		logger.Error("Failed to hash root user password", zap.Error(err))
 		return fmt.Errorf("failed to hash root user password: %w", err)
 	}
 
-	admin := models.User{
-		Username: "admin",
-		Password: hashedPass,
-		Email:    "admin@observv.me",
-		Role:     "admin",
+	users := []models.User{
+		{
+			Username: "admin",
+			Email:    "admin@observv.me",
+			Password: hashedPass,
+			Role:     "admin",
+		},
+		{
+			Username: "user1",
+			Email:    "user1@observv.me",
+			Password: hashedPass,
+			Role:     "user",
+		},
+		{
+			Username: "user2",
+			Email:    "user2@observv.me",
+			Password: hashedPass,
+			Role:     "user",
+		},
 	}
-	if err := db.Create(&admin).Error; err != nil {
-		logger.Error("Failed to create default admin user", zap.Error(err))
-		return fmt.Errorf("failed to create default admin user: %w", err)
+
+	for _, user := range users {
+		var existing models.User
+		err := db.Where("username = ? AND email = ?", user.Username, user.Email).First(&existing).Error
+		if err == nil {
+			logger.Info("User already exists, skipping", zap.String("username", user.Username))
+			continue
+		}
+		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+			logger.Error("Failed to query for existing user", zap.String("username", user.Username), zap.Error(err))
+			return fmt.Errorf("failed to query user %s: %w", user.Username, err)
+		}
+
+		if err := db.Create(&user).Error; err != nil {
+			logger.Error("Failed to create user", zap.String("username", user.Username), zap.Error(err))
+			return fmt.Errorf("failed to create user %s: %w", user.Username, err)
+		}
+		logger.Info("Created user", zap.String("username", user.Username))
 	}
 
 	logger.Info("Database seeding complete.")

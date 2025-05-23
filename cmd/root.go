@@ -1,10 +1,11 @@
 package main
 
 import (
+	"context"
+	"github.com/nootey/observv/pkg/config"
 	"github.com/nootey/observv/pkg/logging"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
-	"log"
 )
 
 var rootCmd = &cobra.Command{
@@ -15,16 +16,18 @@ var rootCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(httpServerCmd)
+	rootCmd.AddCommand(migrateCmd)
 	rootCmd.AddCommand(seedCmd)
 }
 
 func Execute() {
+	cfg := config.LoadConfig()
+
+	logger := logging.NewLogger(cfg.Release)
+	defer logger.Sync()
+	rootCmd.SetContext(context.WithValue(context.Background(), "logger", logger))
+
 	if err := rootCmd.Execute(); err != nil {
-		logger, err := logging.NewLogger()
-		if err != nil {
-			log.Fatal("failed to initialize logger: %w", err)
-		}
-		defer logger.Sync()
 		logger.Fatal("Failed to execute root command", zap.Error(err))
 	}
 }
