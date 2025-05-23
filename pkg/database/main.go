@@ -100,3 +100,14 @@ func EnsureDatabaseExists(cfg *config.Config) error {
 	}
 	return nil
 }
+
+func DropDatabase(cfg *config.Config) error {
+	db, err := sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s)/", cfg.DBUser, cfg.DBPassword, cfg.DBHost))
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	_, err = db.Exec("DROP DATABASE IF EXISTS " + cfg.Database)
+	return err
+}

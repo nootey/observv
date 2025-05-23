@@ -7,3 +7,6 @@ It uses a very simple HTTP server, built in Go and Gin.
 - Having a smaller, less convoluted project, keeps the structure clean and presentable.
 - It also allows for faster testing and quicker updates.
 - The stack is also meant to be reusable.
+
+## Improvements
+- Database mgirations and seeders are very minimal, just for testing purposes. 
