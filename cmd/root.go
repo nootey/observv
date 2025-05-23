@@ -20,11 +20,13 @@ func init() {
 	rootCmd.AddCommand(seedCmd)
 }
 
-func Execute() {
-	cfg := config.LoadConfig()
+func Execute(cfg *config.Config) {
 
 	logger := logging.NewLogger(cfg.Release)
 	defer logger.Sync()
+
+	rootCmd.Version = cfg.AppVersion
+
 	rootCmd.SetContext(context.WithValue(context.Background(), "logger", logger))
 
 	if err := rootCmd.Execute(); err != nil {

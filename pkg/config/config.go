@@ -17,6 +17,7 @@ type Config struct {
 	DBPort           int
 	Database         string
 	RootUserPassword string
+	AppVersion       string
 }
 
 func LoadConfig() *Config {
