@@ -53,6 +53,7 @@ func (rt *HTTPServerRuntime) Run(context context.Context, simulateTerminalTraffi
 		simulationLogger := rt.Logger.Named("simulation")
 		go simulate.StartFakeTraffic(container, simulationLogger)
 		go simulate.StartStatusToggleLoop(container, simulationLogger)
+		go simulate.StartUptimeTracker(container, simulationLogger)
 	}
 
 	<-ctx.Done()

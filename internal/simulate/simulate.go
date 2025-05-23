@@ -1,7 +1,9 @@
 package simulate
 
 import (
+	"fmt"
 	"github.com/nootey/observv/internal/bootstrap"
+	"github.com/nootey/observv/internal/observability"
 	"go.uber.org/zap"
 	"math/rand"
 	"time"
@@ -40,6 +42,8 @@ func StartFakeTraffic(container *bootstrap.Container, logger *zap.Logger) {
 				logger.Warn("Failed to update terminal data", zap.Uint("terminal_id", src.ID), zap.Error(err))
 				continue
 			}
+
+			observability.TerminalDataSent.WithLabelValues(fmt.Sprintf("%d", src.ID)).Add(float64(bytes))
 
 			logger.Info("Simulated data transfer",
 				zap.Uint("from_terminal_id", src.ID),
@@ -92,16 +96,46 @@ func StartStatusToggleLoop(container *bootstrap.Container, logger *zap.Logger) {
 					continue
 				}
 
-				logger.Debug("Toggled terminal status",
-					zap.Uint("terminal_id", terminal.ID),
-					zap.String("new_status", newStatus),
-				)
+				observability.TerminalToggleEvents.WithLabelValues(fmt.Sprintf("%d", terminal.ID)).Inc()
+
+			}
+
+			statusCounts := map[string]int{}
+			for _, t := range terminals {
+				statusCounts[t.Status]++
+			}
+
+			for status, count := range statusCounts {
+				observability.TerminalStatusTotal.WithLabelValues(status).Set(float64(count))
 			}
 
 			logger.Info("Status toggle tick complete",
 				zap.Int("total_terminals", len(terminals)),
 				zap.Int("toggled", countToToggle),
 			)
+		}
+	}()
+}
+
+func StartUptimeTracker(container *bootstrap.Container, logger *zap.Logger) {
+	logger.Info("Starting terminal uptime tracker")
+
+	go func() {
+		ticker := time.NewTicker(10 * time.Second)
+		defer ticker.Stop()
+
+		for range ticker.C {
+			terminals, err := container.TerminalRepo.FindAllTerminals()
+			if err != nil {
+				logger.Warn("Failed to fetch terminals for uptime tracking", zap.Error(err))
+				continue
+			}
+
+			for _, t := range terminals {
+				if t.Status == "online" {
+					observability.TerminalUptime.WithLabelValues(fmt.Sprintf("%d", t.ID)).Add(10)
+				}
+			}
 		}
 	}()
 }
