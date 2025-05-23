@@ -24,10 +24,8 @@ var migrateCmd = &cobra.Command{
 }
 
 func runMigrations(logger *zap.Logger, fresh bool) error {
-
 	logger.Info("Starting database migrations")
 
-	// Load Configuration
 	cfg := config.LoadConfig()
 	logger.Info("Loaded the configuration", zap.Any("config", cfg))
 
@@ -45,19 +43,16 @@ func runMigrations(logger *zap.Logger, fresh bool) error {
 		}
 	}
 
-	// Connect to MySQL using GORM
 	db, err := database.ConnectToDatabase(cfg, true)
 	if err != nil {
 		return fmt.Errorf("failed to connect to MySQL: %v", err)
 	}
 
-	//Migrate the tables
-	if err := db.AutoMigrate(&models.User{}); err != nil {
-		logger.Error("Failed to auto-migrate User model", zap.Error(err))
-		return fmt.Errorf("failed to auto-migrate: %w", err)
+	if err := db.AutoMigrate(&models.User{}, &models.Terminal{}); err != nil {
+		logger.Error("Failed to auto-migrate models", zap.Error(err))
+		return fmt.Errorf("auto-migrate failed: %w", err)
 	}
-
-	logger.Info("Database migrations complete.")
+	logger.Info("Models migrated successfully")
 
 	return nil
 }

@@ -22,6 +22,6 @@ var httpServerCmd = &cobra.Command{
 		)
 
 		app := runtime.NewHTTPServerRuntime(cfg, logger)
-		return app.Run(ctx)
+		return app.Run(ctx, false)
 	},
 }

@@ -1,4 +1,7 @@
-default: http
+default: demo
+
+demo:
+	go run ./cmd demo
 
 http:
 	go run ./cmd http

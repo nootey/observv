@@ -23,3 +23,15 @@ func (r *TerminalRepository) FindAllTerminals() ([]models.Terminal, error) {
 	}
 	return Terminals, nil
 }
+
+func (r *TerminalRepository) UpdateDataSentByID(id uint, bytes int64) error {
+	return r.DB.Model(&models.Terminal{}).
+		Where("id = ?", id).
+		Update("data_sent", gorm.Expr("data_sent + ?", bytes)).Error
+}
+
+func (r *TerminalRepository) UpdateStatusByID(id uint, status string) error {
+	return r.DB.Model(&models.Terminal{}).
+		Where("id = ?", id).
+		Update("status", status).Error
+}

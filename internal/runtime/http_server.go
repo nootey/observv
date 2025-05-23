@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/nootey/observv/internal/bootstrap"
 	"github.com/nootey/observv/internal/http"
+	"github.com/nootey/observv/internal/simulate"
 	"github.com/nootey/observv/pkg/config"
 	"github.com/nootey/observv/pkg/database"
 	"go.uber.org/zap"
@@ -24,7 +25,7 @@ func NewHTTPServerRuntime(cfg *config.Config, logger *zap.Logger) *HTTPServerRun
 	}
 }
 
-func (rt *HTTPServerRuntime) Run(context context.Context) error {
+func (rt *HTTPServerRuntime) Run(context context.Context, simulateTerminalTraffic bool) error {
 	ctx, stop := signal.NotifyContext(context, syscall.SIGTERM, syscall.SIGINT)
 	defer stop()
 
@@ -45,6 +46,14 @@ func (rt *HTTPServerRuntime) Run(context context.Context) error {
 	httpLogger := rt.Logger.Named("http").With(zap.String("component", "HTTP"))
 	httpServer := http.NewServer(container, httpLogger)
 	go httpServer.Start()
+
+	// Once DB and HTTP are confirmed healthy, run the simulation
+	if simulateTerminalTraffic {
+		rt.Logger.Info("Simulation enabled: starting fake terminal traffic...")
+		simulationLogger := rt.Logger.Named("simulation")
+		go simulate.StartFakeTraffic(container, simulationLogger)
+		go simulate.StartStatusToggleLoop(container, simulationLogger)
+	}
 
 	<-ctx.Done()
 

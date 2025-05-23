@@ -18,6 +18,7 @@ func init() {
 	rootCmd.AddCommand(httpServerCmd)
 	rootCmd.AddCommand(migrateCmd)
 	rootCmd.AddCommand(seedCmd)
+	rootCmd.AddCommand(demoCmd)
 }
 
 func Execute(cfg *config.Config) {
