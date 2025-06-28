@@ -1,0 +1,58 @@
+services:
+  prometheus:
+    image: prom/prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ../../pkg/config/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - lgtm
+
+  grafana:
+    image: grafana/grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana-storage:/var/lib/grafana
+    networks:
+      - lgtm
+
+  loki:
+    image: grafana/loki:latest
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - lgtm
+
+  mimir:
+    image: grafana/mimir:latest
+    ports:
+      - "9009:9009"  # HTTP API
+    command: -config.file=/etc/mimir/mimir.yaml
+    volumes:
+      - ../../pkg/config/mimir/config:/etc/mimir
+      - ../../pkg/config/mimir/rules:/data/rules
+      - mimir-data:/data
+    networks:
+      - lgtm
+
+  promtail:
+    image: grafana/promtail:latest
+    volumes:
+      - ../../pkg/config/promtail/promtail-config.yaml:/etc/promtail/config.yaml       # custom config
+      - ../../logs:/app/logs                                      # host logs
+    command: -config.file=/etc/promtail/config.yaml
+    networks:
+      - lgtm
+
+volumes:
+  grafana-storage:
+  mimir-data:
+
+networks:
+  lgtm:
+    external: true

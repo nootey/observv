@@ -1,12 +1,9 @@
 # LGTM Observability stack
 
-## Invidivual
+### Docker
 
-Each service from the stack can be run individually, with its own docker-compose file.
-For simplicity, I will list the commands here:
+To run the stack via the provided `docker-compose.yml`, run the following command:
 
-### Base command
-
-```shell
-docker-compose -f .\deployments\docker\lgtm-individual\docker-compose.{name}.yml up -d 
+```sh 
+docker-compose -f ./deployments/docker/docker-compose.stock.yml -p observv up -d 
 ```
