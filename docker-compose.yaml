@@ -4,6 +4,8 @@ x-app: &app
   build:
     context: .
     dockerfile: ./build/Dockerfile
+    args:
+      VERSION: ${VERSION:-dev}
   image: observv:local
 
 x-app-env: &app-env
@@ -14,6 +16,9 @@ x-app-env: &app-env
   DATABASE_USER: ${POSTGRES_USER:-postgres}
   DATABASE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
   DATABASE_NAME: ${POSTGRES_DB:-observv}
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://alloy:4317
+  OTEL_METRIC_EXPORT_INTERVAL: 15000
+  OTEL_SDK_DISABLED: ${OTEL_SDK_DISABLED:-true} # no collector yet
 
 services:
   db:
@@ -60,6 +65,8 @@ services:
       <<: *app-env
       SERVER_HOST: 0.0.0.0
       SERVER_PORT: 8080
+      CHAOS_LATENCY_MS: ${CHAOS_LATENCY_MS:-0}
+      CHAOS_ERROR_RATE: ${CHAOS_ERROR_RATE:-0}
     ports:
       - "8080:8080"
     healthcheck:

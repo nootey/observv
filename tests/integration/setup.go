@@ -12,6 +12,9 @@ import (
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 	"github.com/testcontainers/testcontainers-go/wait"
+	"go.opentelemetry.io/otel/attribute"
+	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 
 	"github.com/nootey/observv/internal/database"
 	"github.com/nootey/observv/internal/domains/terminal"
@@ -22,6 +25,7 @@ type TestContainer struct {
 	DB        *sql.DB
 	Queries   *database.Queries
 	Services  *Services
+	Metrics   *sdkmetric.ManualReader
 }
 
 type Services struct {
@@ -70,8 +74,12 @@ func (s *ServiceIntegrationSuite) SetupSuite() {
 	// Create queries
 	queries := database.New(db)
 
+	// Delta temporality: each collection holds only the changes since the last one
+	metricReader := sdkmetric.NewManualReader(sdkmetric.WithTemporalitySelector(deltaTemporality))
+	meterProvider := sdkmetric.NewMeterProvider(sdkmetric.WithReader(metricReader))
+
 	// Initialize services
-	terminalService := terminal.NewTerminalService(queries)
+	terminalService := terminal.NewTerminalServiceWithMeter(queries, meterProvider)
 
 	s.TC = &TestContainer{
 		Container: container,
@@ -80,12 +88,16 @@ func (s *ServiceIntegrationSuite) SetupSuite() {
 		Services: &Services{
 			TerminalService: terminalService,
 		},
+		Metrics: metricReader,
 	}
 }
 
 func (s *ServiceIntegrationSuite) SetupTest() {
 	_, err := s.TC.DB.Exec(`TRUNCATE TABLE terminals RESTART IDENTITY CASCADE`)
 	s.Require().NoError(err, "failed to truncate tables")
+
+	// Drop metric changes from earlier tests
+	s.CollectMetrics()
 }
 
 func (s *ServiceIntegrationSuite) TearDownSuite() {
@@ -98,4 +110,56 @@ func (s *ServiceIntegrationSuite) TearDownSuite() {
 			s.T().Logf("container cleanup warning: %s", err)
 		}
 	}
+}
+
+type MetricData metricdata.ResourceMetrics
+
+// CollectMetrics returns the metric changes since the last collection.
+func (s *ServiceIntegrationSuite) CollectMetrics() MetricData {
+	var rm metricdata.ResourceMetrics
+	s.Require().NoError(s.TC.Metrics.Collect(s.Ctx, &rm), "failed to collect metrics")
+	return MetricData(rm)
+}
+
+// Value sums the int64 points of a metric that carry all of attrs.
+func (m MetricData) Value(name string, attrs ...attribute.KeyValue) int64 {
+	var total int64
+	for _, scope := range m.ScopeMetrics {
+		for _, metric := range scope.Metrics {
+			if metric.Name != name {
+				continue
+			}
+			switch data := metric.Data.(type) {
+			case metricdata.Sum[int64]:
+				total += sumMatching(data.DataPoints, attrs)
+			case metricdata.Gauge[int64]:
+				total += sumMatching(data.DataPoints, attrs)
+			}
+		}
+	}
+	return total
+}
+
+func sumMatching(points []metricdata.DataPoint[int64], attrs []attribute.KeyValue) int64 {
+	var total int64
+	for _, p := range points {
+		if hasAll(p.Attributes, attrs) {
+			total += p.Value
+		}
+	}
+	return total
+}
+
+func hasAll(set attribute.Set, attrs []attribute.KeyValue) bool {
+	for _, want := range attrs {
+		got, ok := set.Value(want.Key)
+		if !ok || got != want.Value {
+			return false
+		}
+	}
+	return true
+}
+
+func deltaTemporality(sdkmetric.InstrumentKind) metricdata.Temporality {
+	return metricdata.DeltaTemporality
 }

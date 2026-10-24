@@ -5,6 +5,9 @@ import (
 	"database/sql"
 	"errors"
 
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/metric"
+
 	"github.com/nootey/observv/internal/apperr"
 	"github.com/nootey/observv/internal/database"
 )
@@ -25,11 +28,17 @@ var _ TerminalServiceInterface = (*TerminalService)(nil)
 
 type TerminalService struct {
 	queries *database.Queries
+	metrics *metrics
 }
 
 func NewTerminalService(queries *database.Queries) *TerminalService {
+	return NewTerminalServiceWithMeter(queries, otel.GetMeterProvider())
+}
+
+func NewTerminalServiceWithMeter(queries *database.Queries, meterProvider metric.MeterProvider) *TerminalService {
 	return &TerminalService{
 		queries: queries,
+		metrics: newMetrics(meterProvider, queries),
 	}
 }
 
@@ -82,6 +91,11 @@ func (s *TerminalService) RecordHeartbeat(ctx context.Context, id int64, status 
 		return nil, apperr.New(apperr.KindValidation, "status must be online or offline")
 	}
 
+	prev, err := s.GetTerminal(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
 	updated, err := s.queries.RecordHeartbeat(ctx, database.RecordHeartbeatParams{
 		ID:     id,
 		Status: status,
@@ -93,7 +107,10 @@ func (s *TerminalService) RecordHeartbeat(ctx context.Context, id int64, status 
 		return nil, err
 	}
 
-	return toTerminalModel(updated), nil
+	current := toTerminalModel(updated)
+	s.metrics.recordHeartbeat(ctx, prev, current)
+
+	return current, nil
 }
 
 func (s *TerminalService) Transfer(ctx context.Context, fromID, toID, bytes int64) (*Terminal, error) {
@@ -124,6 +141,8 @@ func (s *TerminalService) Transfer(ctx context.Context, fromID, toID, bytes int6
 	if err != nil {
 		return nil, err
 	}
+
+	s.metrics.recordTransfer(ctx, fromID, bytes)
 
 	return toTerminalModel(updated), nil
 }

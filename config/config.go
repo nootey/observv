@@ -14,6 +14,8 @@ type Config struct {
 	App       AppConfig       `mapstructure:"app"`
 	Seed      SeedConfig      `mapstructure:"seed"`
 	Simulator SimulatorConfig `mapstructure:"simulator"`
+	OTel      OTelConfig      `mapstructure:"otel"`
+	Chaos     ChaosConfig     `mapstructure:"chaos"`
 }
 
 type ServerConfig struct {
@@ -47,6 +49,18 @@ type SimulatorConfig struct {
 	MaxTransferBytes int64   `mapstructure:"max_transfer_bytes" validate:"gt=0"`
 }
 
+// The SDK reads the other OTEL_* env vars itself.
+type OTelConfig struct {
+	ExporterOTLPEndpoint string `mapstructure:"exporter_otlp_endpoint" validate:"required,url"`
+	SDKDisabled          bool   `mapstructure:"sdk_disabled"`
+}
+
+// Validated by chaos.NewChaosService, which also validates runtime updates.
+type ChaosConfig struct {
+	LatencyMS int     `mapstructure:"latency_ms"`
+	ErrorRate float64 `mapstructure:"error_rate"`
+}
+
 var cfg *Config
 
 // setDefaults doubles as the key registry: AutomaticEnv only resolves keys viper
@@ -72,6 +86,12 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("simulator.interval_seconds", 5)
 	v.SetDefault("simulator.status_flip_chance", 0.1)
 	v.SetDefault("simulator.max_transfer_bytes", 100_000_000)
+
+	v.SetDefault("otel.exporter_otlp_endpoint", "http://127.0.0.1:4317")
+	v.SetDefault("otel.sdk_disabled", false)
+
+	v.SetDefault("chaos.latency_ms", 0)
+	v.SetDefault("chaos.error_rate", 0.0)
 }
 
 func Load() error {

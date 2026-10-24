@@ -4,9 +4,10 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"go.uber.org/zap"
+
+	"github.com/nootey/observv/pkg/logging"
 )
 
 func RequestLogger(logger *zap.Logger) func(http.Handler) http.Handler {
@@ -24,12 +25,13 @@ func RequestLogger(logger *zap.Logger) func(http.Handler) http.Handler {
 
 			logger.Info("request completed",
 				zap.String("method", r.Method),
-				zap.String("route", chi.RouteContext(r.Context()).RoutePattern()),
+				zap.String("route", routePattern(r)),
 				zap.String("path", r.URL.Path),
 				zap.Int("status", status),
 				zap.Int("bytes", ww.BytesWritten()),
 				zap.Duration("duration", time.Since(start)),
 				zap.String("request_id", middleware.GetReqID(r.Context())),
+				logging.Context(r.Context()),
 			)
 		})
 	}

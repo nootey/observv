@@ -9,6 +9,9 @@ INSERT INTO terminals (name)
 VALUES ($1)
     ON CONFLICT (name) DO NOTHING;
 
+-- name: CountTerminalsByStatus :many
+SELECT status, COUNT(*) AS count FROM terminals GROUP BY status;
+
 -- name: RecordHeartbeat :one
 UPDATE terminals
 SET uptime_seconds = uptime_seconds + CASE

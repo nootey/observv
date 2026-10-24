@@ -11,6 +11,7 @@ import (
 	"github.com/nootey/observv/tests/integration"
 
 	"github.com/stretchr/testify/suite"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 type TerminalServiceTestSuite struct {
@@ -76,6 +77,35 @@ func (s *TerminalServiceTestSuite) TestRecordHeartbeat_NoUptimeWhileOffline() {
 	s.Assert().Zero(result.UptimeSeconds)
 }
 
+func (s *TerminalServiceTestSuite) TestRecordHeartbeat_CountsStatusChange() {
+	svc := s.TC.Services.TerminalService
+	ids := s.seedTerminals(1)
+
+	_, err := svc.RecordHeartbeat(context.Background(), ids[0], terminal.StatusOnline)
+	s.Require().NoError(err)
+	_, err = svc.RecordHeartbeat(context.Background(), ids[0], terminal.StatusOnline)
+	s.Require().NoError(err)
+
+	changes := s.CollectMetrics().Value("terminal.status.changes",
+		attribute.Int64("terminal.id", ids[0]),
+		attribute.String("status", terminal.StatusOnline),
+	)
+	s.Assert().Equal(int64(1), changes)
+}
+
+func (s *TerminalServiceTestSuite) TestRecordHeartbeat_CountsUptime() {
+	svc := s.TC.Services.TerminalService
+	ids := s.seedTerminals(1)
+	s.setLastSeen(ids[0], terminal.StatusOnline, 30)
+
+	_, err := svc.RecordHeartbeat(context.Background(), ids[0], terminal.StatusOnline)
+	s.Require().NoError(err)
+
+	m := s.CollectMetrics()
+	s.Assert().InDelta(30, m.Value("terminal.uptime", attribute.Int64("terminal.id", ids[0])), 2)
+	s.Assert().Zero(m.Value("terminal.status.changes"))
+}
+
 func (s *TerminalServiceTestSuite) TestRecordHeartbeat_InvalidStatus() {
 	svc := s.TC.Services.TerminalService
 	ids := s.seedTerminals(1)
@@ -103,6 +133,7 @@ func (s *TerminalServiceTestSuite) TestTransfer_Success() {
 	s.Require().NoError(err)
 	s.Assert().Equal(ids[0], result.ID)
 	s.Assert().Equal(int64(500), result.DataSentBytes)
+	s.Assert().Equal(int64(500), s.CollectMetrics().Value("terminal.data.sent", attribute.Int64("terminal.id", ids[0])))
 }
 
 func (s *TerminalServiceTestSuite) TestTransfer_PeerOffline() {
@@ -117,6 +148,7 @@ func (s *TerminalServiceTestSuite) TestTransfer_PeerOffline() {
 	sender, err := svc.GetTerminal(context.Background(), ids[0])
 	s.Require().NoError(err)
 	s.Assert().Zero(sender.DataSentBytes)
+	s.Assert().Zero(s.CollectMetrics().Value("terminal.data.sent"))
 }
 
 func (s *TerminalServiceTestSuite) TestTransfer_ToSelf() {
@@ -135,6 +167,15 @@ func (s *TerminalServiceTestSuite) TestTransfer_InvalidBytes() {
 	_, err := svc.Transfer(context.Background(), ids[0], ids[1], 0)
 
 	s.assertStatus(err, http.StatusBadRequest)
+}
+
+func (s *TerminalServiceTestSuite) TestTerminalCount() {
+	ids := s.seedTerminals(3)
+	s.setOnline(ids[0])
+
+	m := s.CollectMetrics()
+	s.Assert().Equal(int64(1), m.Value("terminal.count", attribute.String("status", terminal.StatusOnline)))
+	s.Assert().Equal(int64(2), m.Value("terminal.count", attribute.String("status", terminal.StatusOffline)))
 }
 
 func (s *TerminalServiceTestSuite) seedTerminals(count int) []int64 {
