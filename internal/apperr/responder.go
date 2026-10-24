@@ -6,6 +6,8 @@ import (
 
 	"github.com/go-chi/chi/v5/middleware"
 	"go.uber.org/zap"
+
+	"github.com/nootey/observv/pkg/logging"
 )
 
 type ErrorResponse struct {
@@ -46,6 +48,7 @@ func (rp *Responder) Error(w http.ResponseWriter, r *http.Request, err error) {
 			zap.String("path", r.URL.Path),
 			zap.String("request_id", middleware.GetReqID(r.Context())),
 			zap.Error(err),
+			logging.Context(r.Context()),
 		)
 	}
 	rp.JSON(w, status, ErrorResponse{Title: "Error", Message: message})

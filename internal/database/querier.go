@@ -10,6 +10,7 @@ import (
 
 type Querier interface {
 	AddDataSent(ctx context.Context, arg AddDataSentParams) (Terminal, error)
+	CountTerminalsByStatus(ctx context.Context) ([]CountTerminalsByStatusRow, error)
 	CreateTerminal(ctx context.Context, name string) error
 	GetTerminal(ctx context.Context, id int64) (Terminal, error)
 	ListTerminals(ctx context.Context) ([]Terminal, error)

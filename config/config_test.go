@@ -12,6 +12,9 @@ func TestLoadEnvOverrides(t *testing.T) {
 	t.Setenv("SEED_TERMINALS", "15")
 	t.Setenv("SIMULATOR_API_URL", "http://api:8080")
 	t.Setenv("SIMULATOR_STATUS_FLIP_CHANCE", "0.5")
+	t.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://alloy:4317")
+	t.Setenv("OTEL_SDK_DISABLED", "true")
+	t.Setenv("CHAOS_ERROR_RATE", "0.25")
 
 	if err := Load(); err != nil {
 		t.Fatalf("Load() error = %v", err)
@@ -35,6 +38,15 @@ func TestLoadEnvOverrides(t *testing.T) {
 	}
 	if c.Simulator.StatusFlipChance != 0.5 {
 		t.Errorf("Simulator.StatusFlipChance = %v, want 0.5", c.Simulator.StatusFlipChance)
+	}
+	if c.OTel.ExporterOTLPEndpoint != "http://alloy:4317" {
+		t.Errorf("OTel.ExporterOTLPEndpoint = %q, want %q", c.OTel.ExporterOTLPEndpoint, "http://alloy:4317")
+	}
+	if !c.OTel.SDKDisabled {
+		t.Error("OTel.SDKDisabled = false, want true")
+	}
+	if c.Chaos.ErrorRate != 0.25 {
+		t.Errorf("Chaos.ErrorRate = %v, want 0.25", c.Chaos.ErrorRate)
 	}
 }
 

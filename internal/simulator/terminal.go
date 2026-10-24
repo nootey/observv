@@ -9,9 +9,15 @@ import (
 
 	"github.com/nootey/observv/config"
 	"github.com/nootey/observv/internal/domains/terminal"
+	"github.com/nootey/observv/pkg/logging"
 
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 )
+
+var tracer = otel.Tracer("github.com/nootey/observv/internal/simulator")
 
 var toggledStatus = map[string]string{
 	terminal.StatusOnline:  terminal.StatusOffline,
@@ -79,6 +85,9 @@ func (t *Terminal) Run(ctx context.Context) error {
 }
 
 func (t *Terminal) tick(ctx context.Context) {
+	ctx, span := tracer.Start(ctx, "terminal.tick", trace.WithAttributes(attribute.Int64("terminal.id", t.id)))
+	defer span.End()
+
 	if rand.Float64() < t.cfg.StatusFlipChance {
 		t.status = toggledStatus[t.status]
 	}
@@ -100,7 +109,7 @@ func (t *Terminal) goOffline() {
 
 func (t *Terminal) heartbeat(ctx context.Context) {
 	if err := t.client.Heartbeat(ctx, t.id, t.status); err != nil && ctx.Err() == nil {
-		t.logger.Warn("heartbeat failed", zap.String("status", t.status), zap.Error(err))
+		t.logger.Warn("heartbeat failed", zap.String("status", t.status), zap.Error(err), logging.Context(ctx))
 	}
 }
 
@@ -114,8 +123,8 @@ func (t *Terminal) transfer(ctx context.Context) {
 	switch {
 	case err == nil:
 	case errors.As(err, &apiErr) && apiErr.Status == http.StatusConflict:
-		t.logger.Debug("transfer rejected", zap.Int64("to_terminal_id", to), zap.Error(err))
+		t.logger.Debug("transfer rejected", zap.Int64("to_terminal_id", to), zap.Error(err), logging.Context(ctx))
 	case ctx.Err() == nil:
-		t.logger.Warn("transfer failed", zap.Int64("to_terminal_id", to), zap.Error(err))
+		t.logger.Warn("transfer failed", zap.Int64("to_terminal_id", to), zap.Error(err), logging.Context(ctx))
 	}
 }

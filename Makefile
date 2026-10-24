@@ -1,12 +1,16 @@
 # sqlc is not installed globally, so it runs pinned through go run
 SQLC := go run github.com/sqlc-dev/sqlc/cmd/sqlc@v1.31.1
 
+# Exported, so docker compose gets it as a build arg
+export VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
+LDFLAGS := -X github.com/nootey/observv/pkg/version.Version=$(VERSION)
+
 # Application (run `make db` first)
 run:
-	go run ./cmd/api
+	go run -ldflags "$(LDFLAGS)" ./cmd/api
 
 simulate:
-	go run ./cmd/simulator
+	go run -ldflags "$(LDFLAGS)" ./cmd/simulator
 
 mock:
 	mockery --config=.mockery.yaml

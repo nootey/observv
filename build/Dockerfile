@@ -15,11 +15,13 @@ COPY internal ./internal
 COPY pkg ./pkg
 
 # Build all binaries
+ARG VERSION=dev
 ENV CGO_ENABLED=0
-RUN go build -ldflags="-w -s" -o bin/api ./cmd/api
-RUN go build -ldflags="-w -s" -o bin/simulator ./cmd/simulator
-RUN go build -ldflags="-w -s" -o bin/migrate ./cmd/migrate
-RUN go build -ldflags="-w -s" -o bin/seed ./cmd/seed
+ENV LDFLAGS="-w -s -X github.com/nootey/observv/pkg/version.Version=${VERSION}"
+RUN go build -ldflags="$LDFLAGS" -o bin/api ./cmd/api
+RUN go build -ldflags="$LDFLAGS" -o bin/simulator ./cmd/simulator
+RUN go build -ldflags="$LDFLAGS" -o bin/migrate ./cmd/migrate
+RUN go build -ldflags="$LDFLAGS" -o bin/seed ./cmd/seed
 
 # Stage 2: Runtime
 FROM alpine:3.24

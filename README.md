@@ -8,7 +8,7 @@ The app is kept small on purpose, so the focus stays on observability:
 - A simulator that acts as the fleet. It calls the API over HTTP, so every signal comes from real traffic.
 - The stack is meant to be reusable in other projects.
 
-> Work in progress. The observability stack is not added yet.
+> Work in progress. The app sends telemetry, but the stack that receives it is not added yet.
 
 ## Quick start
 
@@ -42,8 +42,21 @@ The API listens on `http://localhost:8080`.
 | `GET` | `/api/terminals/{id}` | |
 | `POST` | `/api/terminals/{id}/heartbeat` | `{"status": "online"}` or `{"status": "offline"}` |
 | `POST` | `/api/terminals/{id}/transfers` | `{"to_id": 2, "bytes": 1024}` |
+| `GET` | `/api/chaos` | |
+| `POST` | `/api/chaos` | `{"latency_ms": 500, "error_rate": 0.2}` |
 
 A transfer needs both terminals online. If one is offline, the API answers `409 Conflict`. The simulator does not know the status of its peers, so part of its traffic gets this answer. This gives the demo a normal share of client errors.
+
+The chaos settings add latency and `500` errors to each `/api/terminals` request. `POST /api/chaos` replaces both values while the API runs, so you can start an incident live. `CHAOS_LATENCY_MS` and `CHAOS_ERROR_RATE` set the values at start.
+
+## Telemetry
+
+The API and the simulator send traces, metrics and logs over OTLP gRPC to `OTEL_EXPORTER_OTLP_ENDPOINT` (default `http://127.0.0.1:4317`). A trace starts in the simulator and continues in the API, down to each SQL query. Each log record carries the trace ID of its request.
+
+Until the stack is added:
+
+- In Docker, telemetry is off (`OTEL_SDK_DISABLED=true` in `docker-compose.yaml`).
+- On the host, run an OTLP collector on port 4317, or set `OTEL_SDK_DISABLED=true` in `.env`.
 
 ## Development
 
