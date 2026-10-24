@@ -1,0 +1,63 @@
+name: "Run Server Tests"
+
+on:
+  push:
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
+    branches:
+      - main
+      - development
+
+  workflow_dispatch:
+
+  pull_request:
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
+    branches:
+      - main
+      - development
+    types: [ opened, synchronize, reopened ]
+
+jobs:
+  test:
+    name: Run tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: 'go.mod'
+          cache: true
+
+      - name: Run tests with coverage
+        run: make test-coverage
+
+      - name: Archive code coverage results
+        uses: actions/upload-artifact@v7
+        with:
+          name: code-coverage
+          path: coverage.out
+
+  code_coverage:
+    name: "Code coverage report"
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    needs: test
+    continue-on-error: true
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v6
+      - uses: fgrosse/go-coverage-report@v1.3.0
+        with:
+          coverage-artifact-name: code-coverage
+          coverage-file-name: coverage.out
+          root-package: github.com/nootey/observv
