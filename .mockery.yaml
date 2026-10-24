@@ -1,0 +1,8 @@
+dir: "mocks"
+filename: "mock_{{.InterfaceName}}.go"
+pkgname: "mocks"
+structname: "Mock{{.InterfaceName}}"
+packages:
+  github.com/nootey/observv/internal/domains/terminal:
+    interfaces:
+      TerminalServiceInterface:

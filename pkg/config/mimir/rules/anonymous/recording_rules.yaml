@@ -1,6 +1,0 @@
-groups:
-  - name: example-recording-rules
-    interval: 30s
-    rules:
-      - record: job:http_requests_total:rate1m
-        expr: rate(http_requests_total[1m])
