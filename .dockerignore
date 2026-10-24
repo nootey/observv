@@ -1,0 +1,8 @@
+.git
+.env
+.idea
+.vscode
+logs
+vendor
+mocks
+coverage.*

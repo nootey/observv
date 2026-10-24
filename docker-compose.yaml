@@ -1,0 +1,90 @@
+name: observv
+
+x-app: &app
+  build:
+    context: .
+    dockerfile: ./build/Dockerfile
+  image: observv:local
+
+x-app-env: &app-env
+  APP_ENVIRONMENT: ${APP_ENVIRONMENT:-development}
+  APP_LOG_LEVEL: ${APP_LOG_LEVEL:-info}
+  DATABASE_HOST: db
+  DATABASE_PORT: 5432
+  DATABASE_USER: ${POSTGRES_USER:-postgres}
+  DATABASE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+  DATABASE_NAME: ${POSTGRES_DB:-observv}
+
+services:
+  db:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-observv}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-observv}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  migrate:
+    <<: *app
+    environment:
+      <<: *app-env
+    entrypoint: ["migrate"]
+    command: ["up"]
+    depends_on:
+      db:
+        condition: service_healthy
+
+  seed:
+    <<: *app
+    environment:
+      <<: *app-env
+      SEED_TERMINALS: ${SEED_TERMINALS:-10}
+    entrypoint: ["seed"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  api:
+    <<: *app
+    restart: unless-stopped
+    environment:
+      <<: *app-env
+      SERVER_HOST: 0.0.0.0
+      SERVER_PORT: 8080
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      start_period: 5s
+      retries: 3
+    depends_on:
+      seed:
+        condition: service_completed_successfully
+
+  simulator:
+    <<: *app
+    restart: unless-stopped
+    environment:
+      <<: *app-env
+      SIMULATOR_API_URL: http://api:8080
+      SIMULATOR_INTERVAL_SECONDS: ${SIMULATOR_INTERVAL_SECONDS:-5}
+      SIMULATOR_STATUS_FLIP_CHANCE: ${SIMULATOR_STATUS_FLIP_CHANCE:-0.1}
+      SIMULATOR_MAX_TRANSFER_BYTES: ${SIMULATOR_MAX_TRANSFER_BYTES:-100000000}
+    entrypoint: ["simulator"]
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
