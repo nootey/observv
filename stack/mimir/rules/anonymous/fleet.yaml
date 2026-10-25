@@ -1,0 +1,15 @@
+groups:
+  - name: observv-fleet
+    rules:
+      - alert: FleetMostlyOffline
+        expr: |
+          sum by (job) (terminal_count{job="observv-api", status="offline"})
+          /
+          sum by (job) (terminal_count{job="observv-api"})
+          > 0.5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: More than half of the terminals are offline.
+          description: "{{ $value | humanizePercentage }} of the terminals have been offline for 5 minutes."

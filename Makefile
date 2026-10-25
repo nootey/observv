@@ -67,6 +67,15 @@ db:
 logs:
 	docker compose $(COMPOSE) logs -f api simulator
 
+# Chaos (needs the api on the host port, so not with prod-up)
+CHAOS_URL := http://127.0.0.1:8080/api/chaos
+
+chaos-on:
+	curl -sS -X POST $(CHAOS_URL) -H 'Content-Type: application/json' -d '{"latency_ms":300,"error_rate":0.2}'
+
+chaos-off:
+	curl -sS -X POST $(CHAOS_URL) -H 'Content-Type: application/json' -d '{"latency_ms":0,"error_rate":0}'
+
 # SQLC
 sqlc:
 	$(SQLC) generate
