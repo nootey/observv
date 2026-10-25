@@ -40,6 +40,10 @@ store_gateway:
   sharding_ring:
     replication_factor: 1
 
+# Off: 16 shards per query fill the 100-request queue on one host
+frontend:
+  parallelize_shardable_queries: false
+
 # Rules are files in the repo: rules/<tenant>/<namespace>.yaml
 ruler:
   rule_path: /data/ruler
