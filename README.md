@@ -47,7 +47,7 @@ The API listens on `http://localhost:8080`.
 
 A transfer needs both terminals online. If one is offline, the API answers `409 Conflict`. The simulator does not know the status of its peers, so part of its traffic gets this answer. This gives the demo a normal share of client errors.
 
-The chaos settings add latency and `500` errors to each `/api/terminals` request. `POST /api/chaos` replaces both values while the API runs, so you can start an incident live. `CHAOS_LATENCY_MS` and `CHAOS_ERROR_RATE` set the values at start.
+The chaos settings add latency and `500` errors to each `/api/terminals` request. `POST /api/chaos` replaces both values while the API runs, so you can start an incident live. `CHAOS_LATENCY_MS` and `CHAOS_ERROR_RATE` set the values at start. `make chaos-on` sets 300 ms and 20% errors. The fast burn-rate alert then fires after about 7 minutes. `make chaos-off` sets both back to 0.
 
 ## Telemetry
 

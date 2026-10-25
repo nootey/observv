@@ -1,0 +1,116 @@
+# Share of bad api requests per window: 5xx responses, and requests slower than 250 ms
+groups:
+  - name: observv-sli
+    rules:
+      - record: job:http_server_errors:ratio_rate5m
+        expr: |
+          (
+            sum by (job) (rate(http_server_request_duration_seconds_count{job="observv-api", http_response_status_code=~"5.."}[5m]))
+            or
+            sum by (job) (rate(http_server_request_duration_seconds_count{job="observv-api"}[5m])) * 0
+          )
+          /
+          sum by (job) (rate(http_server_request_duration_seconds_count{job="observv-api"}[5m]))
+      - record: job:http_server_errors:ratio_rate30m
+        expr: |
+          (
+            sum by (job) (rate(http_server_request_duration_seconds_count{job="observv-api", http_response_status_code=~"5.."}[30m]))
+            or
+            sum by (job) (rate(http_server_request_duration_seconds_count{job="observv-api"}[30m])) * 0
+          )
+          /
+          sum by (job) (rate(http_server_request_duration_seconds_count{job="observv-api"}[30m]))
+      - record: job:http_server_errors:ratio_rate1h
+        expr: |
+          (
+            sum by (job) (rate(http_server_request_duration_seconds_count{job="observv-api", http_response_status_code=~"5.."}[1h]))
+            or
+            sum by (job) (rate(http_server_request_duration_seconds_count{job="observv-api"}[1h])) * 0
+          )
+          /
+          sum by (job) (rate(http_server_request_duration_seconds_count{job="observv-api"}[1h]))
+      - record: job:http_server_errors:ratio_rate6h
+        expr: |
+          (
+            sum by (job) (rate(http_server_request_duration_seconds_count{job="observv-api", http_response_status_code=~"5.."}[6h]))
+            or
+            sum by (job) (rate(http_server_request_duration_seconds_count{job="observv-api"}[6h])) * 0
+          )
+          /
+          sum by (job) (rate(http_server_request_duration_seconds_count{job="observv-api"}[6h]))
+
+      - record: job:http_server_slow:ratio_rate5m
+        expr: |
+          1 - (
+            sum by (job) (rate(http_server_request_duration_seconds_bucket{job="observv-api", le="0.25"}[5m]))
+            /
+            sum by (job) (rate(http_server_request_duration_seconds_count{job="observv-api"}[5m]))
+          )
+      - record: job:http_server_slow:ratio_rate30m
+        expr: |
+          1 - (
+            sum by (job) (rate(http_server_request_duration_seconds_bucket{job="observv-api", le="0.25"}[30m]))
+            /
+            sum by (job) (rate(http_server_request_duration_seconds_count{job="observv-api"}[30m]))
+          )
+      - record: job:http_server_slow:ratio_rate1h
+        expr: |
+          1 - (
+            sum by (job) (rate(http_server_request_duration_seconds_bucket{job="observv-api", le="0.25"}[1h]))
+            /
+            sum by (job) (rate(http_server_request_duration_seconds_count{job="observv-api"}[1h]))
+          )
+      - record: job:http_server_slow:ratio_rate6h
+        expr: |
+          1 - (
+            sum by (job) (rate(http_server_request_duration_seconds_bucket{job="observv-api", le="0.25"}[6h]))
+            /
+            sum by (job) (rate(http_server_request_duration_seconds_count{job="observv-api"}[6h]))
+          )
+
+  - name: observv-slo
+    rules:
+      - alert: ApiAvailabilityFastBurn
+        expr: |
+          job:http_server_errors:ratio_rate1h > (14.4 * 0.001)
+          and
+          job:http_server_errors:ratio_rate5m > (14.4 * 0.001)
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: The api uses its availability error budget 14.4 times too fast.
+          description: "{{ $value | humanizePercentage }} of requests failed in the last hour. The objective is 99.9% success."
+      - alert: ApiAvailabilitySlowBurn
+        expr: |
+          job:http_server_errors:ratio_rate6h > (6 * 0.001)
+          and
+          job:http_server_errors:ratio_rate30m > (6 * 0.001)
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: The api uses its availability error budget 6 times too fast.
+          description: "{{ $value | humanizePercentage }} of requests failed in the last 6 hours. The objective is 99.9% success."
+      - alert: ApiLatencyFastBurn
+        expr: |
+          job:http_server_slow:ratio_rate1h > (14.4 * 0.01)
+          and
+          job:http_server_slow:ratio_rate5m > (14.4 * 0.01)
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: The api uses its latency error budget 14.4 times too fast.
+          description: "{{ $value | humanizePercentage }} of requests took 250 ms or more in the last hour. The objective is 99% faster."
+      - alert: ApiLatencySlowBurn
+        expr: |
+          job:http_server_slow:ratio_rate6h > (6 * 0.01)
+          and
+          job:http_server_slow:ratio_rate30m > (6 * 0.01)
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: The api uses its latency error budget 6 times too fast.
+          description: "{{ $value | humanizePercentage }} of requests took 250 ms or more in the last 6 hours. The objective is 99% faster."
