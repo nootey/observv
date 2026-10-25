@@ -1,0 +1,6 @@
+# Fallback config for tenants with no config of their own. Alerts only show in Grafana.
+route:
+  receiver: default
+
+receivers:
+  - name: default
