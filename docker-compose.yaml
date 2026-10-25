@@ -18,9 +18,33 @@ x-app-env: &app-env
   DATABASE_NAME: ${POSTGRES_DB:-observv}
   OTEL_EXPORTER_OTLP_ENDPOINT: http://alloy:4317
   OTEL_METRIC_EXPORT_INTERVAL: 15000
-  OTEL_SDK_DISABLED: ${OTEL_SDK_DISABLED:-true} # no collector yet
+  OTEL_SDK_DISABLED: ${OTEL_SDK_DISABLED:-false}
 
 services:
+  traefik:
+    image: traefik:v3.7.16
+    profiles: ["proxy"]
+    restart: unless-stopped
+    command:
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      # Redirect HTTP to HTTPS
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
+      # ACME
+      - --certificatesresolvers.le.acme.email=${TRAEFIK_EMAIL:-}
+      - --certificatesresolvers.le.acme.storage=/letsencrypt/acme.json
+      - --certificatesresolvers.le.acme.httpchallenge=true
+      - --certificatesresolvers.le.acme.httpchallenge.entrypoint=web
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - traefik_letsencrypt:/letsencrypt
+
   db:
     image: postgres:18-alpine
     restart: unless-stopped
@@ -28,8 +52,6 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       POSTGRES_DB: ${POSTGRES_DB:-observv}
-    ports:
-      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql
     healthcheck:
@@ -67,8 +89,6 @@ services:
       SERVER_PORT: 8080
       CHAOS_LATENCY_MS: ${CHAOS_LATENCY_MS:-0}
       CHAOS_ERROR_RATE: ${CHAOS_ERROR_RATE:-0}
-    ports:
-      - "8080:8080"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 10s
@@ -95,3 +115,4 @@ services:
 
 volumes:
   postgres_data:
+  traefik_letsencrypt:

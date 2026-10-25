@@ -1,0 +1,83 @@
+name: observv
+
+# The observability stack. Each service reads its config from ./stack.
+# Mimir, Loki and Tempo images have no shell, so they cannot have a healthcheck.
+
+services:
+  alloy:
+    image: grafana/alloy:v1.21.2
+    restart: unless-stopped
+    command:
+      - run
+      - /etc/alloy/config.alloy
+      - --storage.path=/var/lib/alloy/data
+      - --server.http.listen-addr=0.0.0.0:12345
+    volumes:
+      - ./stack/alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - alloy_data:/var/lib/alloy/data
+    depends_on:
+      - mimir
+      - loki
+      - tempo
+
+  mimir:
+    image: grafana/mimir:3.2.3
+    restart: unless-stopped
+    command: ["-config.file=/etc/mimir/mimir.yaml"]
+    volumes:
+      - ./stack/mimir/mimir.yaml:/etc/mimir/mimir.yaml:ro
+      - ./stack/mimir/alertmanager.yaml:/etc/mimir/alertmanager.yaml:ro
+      - ./stack/mimir/rules:/etc/mimir/rules:ro
+      - mimir_data:/data
+
+  loki:
+    image: grafana/loki:3.7.9
+    restart: unless-stopped
+    command: ["-config.file=/etc/loki/loki.yaml"]
+    volumes:
+      - ./stack/loki/loki.yaml:/etc/loki/loki.yaml:ro
+      - loki_data:/loki
+
+  tempo:
+    image: grafana/tempo:3.1.1
+    restart: unless-stopped
+    command: ["-config.file=/etc/tempo/tempo.yaml"]
+    volumes:
+      - ./stack/tempo/tempo.yaml:/etc/tempo/tempo.yaml:ro
+      - tempo_data:/var/tempo
+
+  grafana:
+    image: grafana/grafana:13.2.4
+    restart: unless-stopped
+    environment:
+      # Read only on the first start. Later changes need a new grafana_data volume.
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_SECURITY_COOKIE_SECURE: "true"
+      GF_SERVER_ROOT_URL: https://grafana.${DOMAIN:-localhost}
+    volumes:
+      - ./stack/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana_data:/var/lib/grafana
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.grafana.rule: Host(`grafana.${DOMAIN:-localhost}`)
+      traefik.http.routers.grafana.entrypoints: websecure
+      traefik.http.routers.grafana.tls.certresolver: le
+      traefik.http.services.grafana.loadbalancer.server.port: "3000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      start_period: 60s # the first start runs database migrations
+      retries: 3
+    depends_on:
+      - mimir
+      - loki
+      - tempo
+
+volumes:
+  alloy_data:
+  mimir_data:
+  loki_data:
+  tempo_data:
+  grafana_data:

@@ -1,0 +1,25 @@
+services:
+  alloy:
+    ports:
+      - "127.0.0.1:4317:4317" # OTLP gRPC, also for the api on the host
+      - "127.0.0.1:4318:4318" # OTLP HTTP
+      - "127.0.0.1:12345:12345" # Alloy UI
+
+  mimir:
+    ports:
+      - "127.0.0.1:9009:9009"
+
+  loki:
+    ports:
+      - "127.0.0.1:3100:3100"
+
+  tempo:
+    ports:
+      - "127.0.0.1:3200:3200"
+
+  grafana:
+    environment:
+      GF_SECURITY_COOKIE_SECURE: "false"
+      GF_SERVER_ROOT_URL: http://localhost:3000
+    ports:
+      - "127.0.0.1:3000:3000"

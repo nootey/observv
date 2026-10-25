@@ -1,0 +1,66 @@
+# Monolithic mode on the local filesystem. It runs on one host, with no replication.
+target: all,alertmanager
+
+# Every request goes to the "anonymous" tenant
+multitenancy_enabled: false
+
+server:
+  http_listen_port: 9009
+  log_level: warn
+
+blocks_storage:
+  backend: filesystem
+  filesystem:
+    dir: /data/blocks
+  bucket_store:
+    sync_dir: /data/tsdb-sync
+  tsdb:
+    dir: /data/tsdb
+
+compactor:
+  data_dir: /data/compactor
+  sharding_ring:
+    kvstore:
+      store: memberlist
+
+distributor:
+  ring:
+    instance_addr: 127.0.0.1
+    kvstore:
+      store: memberlist
+
+ingester:
+  ring:
+    instance_addr: 127.0.0.1
+    kvstore:
+      store: memberlist
+    replication_factor: 1
+
+store_gateway:
+  sharding_ring:
+    replication_factor: 1
+
+# Rules are files in the repo: rules/<tenant>/<namespace>.yaml
+ruler:
+  rule_path: /data/ruler
+  alertmanager_url: http://localhost:9009/alertmanager
+
+ruler_storage:
+  backend: local
+  local:
+    directory: /etc/mimir/rules
+
+alertmanager:
+  data_dir: /data/alertmanager
+  external_url: http://localhost:9009/alertmanager
+  fallback_config_file: /etc/mimir/alertmanager.yaml
+
+alertmanager_storage:
+  backend: filesystem
+  filesystem:
+    dir: /data/alertmanager-configs
+
+limits:
+  max_global_exemplars_per_user: 100000
+  # terminal.data.sent (unit By) becomes terminal_data_sent_bytes_total
+  otel_metric_suffixes_enabled: true

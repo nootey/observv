@@ -5,7 +5,7 @@ SQLC := go run github.com/sqlc-dev/sqlc/cmd/sqlc@v1.31.1
 export VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 LDFLAGS := -X github.com/nootey/observv/pkg/version.Version=$(VERSION)
 
-# Application (run `make db` first)
+# Application (run `make db` and `make stack-up` first)
 run:
 	go run -ldflags "$(LDFLAGS)" ./cmd/api
 
@@ -41,16 +41,28 @@ seed:
 	go run ./cmd/seed
 
 # Docker
-COMPOSE := -f ./docker-compose.yaml
+COMPOSE             := -f ./docker-compose.yaml
+COMPOSE_LOCAL       := -f ./docker-compose.local.yaml
+COMPOSE_STACK       := -f ./docker-compose.stack.yaml
+COMPOSE_STACK_LOCAL := -f ./docker-compose.stack.local.yaml
 
+# App and stack. Grafana runs on http://localhost:3000
 up:
-	docker compose $(COMPOSE) up -d --build
+	docker compose $(COMPOSE) $(COMPOSE_LOCAL) $(COMPOSE_STACK) $(COMPOSE_STACK_LOCAL) up -d --build
+
+# Stack only, for the api on the host
+stack-up:
+	docker compose $(COMPOSE_STACK) $(COMPOSE_STACK_LOCAL) up -d
+
+# App and stack behind Traefik. Grafana runs on https://grafana.$DOMAIN
+prod-up:
+	docker compose $(COMPOSE) $(COMPOSE_STACK) --profile proxy up -d --build
 
 down:
-	docker compose $(COMPOSE) down
+	docker compose $(COMPOSE) $(COMPOSE_STACK) --profile proxy down
 
 db:
-	docker compose $(COMPOSE) up -d db
+	docker compose $(COMPOSE) $(COMPOSE_LOCAL) up -d db
 
 logs:
 	docker compose $(COMPOSE) logs -f api simulator
