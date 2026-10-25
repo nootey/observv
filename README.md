@@ -1,64 +1,48 @@
 # observv
 
-A small showcase for the Grafana observability stack (LGTM: Loki, Grafana, Tempo, Mimir).
+A demo of the Grafana observability stack (LGTM: Loki, Grafana, Tempo, Mimir).
 
-The app is kept small on purpose, so the focus stays on observability:
+A Go API and a simulated fleet of terminals send traces, metrics and logs over OTLP. Grafana is provisioned with datasources, dashboards and SLO alerts. Traces, metrics and logs link to each other. A chaos mode adds latency and errors to trigger an alert.
 
-- A Go API (chi, Postgres, sqlc) that tracks a fleet of terminals.
-- A simulator that acts as the fleet. It calls the API over HTTP, so every signal comes from real traffic.
-- The stack is meant to be reusable in other projects.
-
-> Work in progress. The app sends telemetry, but the stack that receives it is not added yet.
+![Overview dashboard](dash.png)
 
 ## Quick start
 
-Run everything in Docker:
+```sh
+make up
+```
+
+Open http://localhost:3000 and log in as `admin` / `admin`.
 
 ```sh
-make up      # db, migrations, seed, api, simulator
-make logs    # follow api and simulator logs
+make chaos-on   # 300 ms latency and 20% errors
+make chaos-off
 make down
 ```
 
-Or run the Go code on the host, with only the database in Docker:
+## Architecture
+
+- The simulator calls the API over HTTP. Each trace starts in the simulator and continues through the API to each SQL query.
+- Alloy is the only collector. It pushes metrics to Mimir, so no Prometheus server is needed.
+- The Mimir ruler evaluates the SLO recording rules and burn-rate alerts.
+- The `stack/` directory is self-contained and can be copied into other projects.
+- Fleet metrics use a `terminal.id` label. With 10 terminals, the cost is low. For unbounded IDs, such as user IDs, use traces and logs instead of metric labels.
+
+## Alerting
+
+Run `make chaos-on`. After about 7 minutes, `ApiAvailabilityFastBurn` fires. The alert shows on the **SLO** dashboard and in Grafana Alerting. Run `make chaos-off` to resolve it.
+
+## Development
+
+Run the Go code on the host, with the database and the stack in Docker:
 
 ```sh
 cp .env.example .env
-make db
-make migrate-up
-make seed
+make db stack-up
+make migrate-up seed
 make run       # terminal 1
 make simulate  # terminal 2
 ```
-
-The API listens on `http://localhost:8080`.
-
-## API
-
-| Method | Path | Body |
-|---|---|---|
-| `GET` | `/health` | |
-| `GET` | `/api/terminals` | |
-| `GET` | `/api/terminals/{id}` | |
-| `POST` | `/api/terminals/{id}/heartbeat` | `{"status": "online"}` or `{"status": "offline"}` |
-| `POST` | `/api/terminals/{id}/transfers` | `{"to_id": 2, "bytes": 1024}` |
-| `GET` | `/api/chaos` | |
-| `POST` | `/api/chaos` | `{"latency_ms": 500, "error_rate": 0.2}` |
-
-A transfer needs both terminals online. If one is offline, the API answers `409 Conflict`. The simulator does not know the status of its peers, so part of its traffic gets this answer. This gives the demo a normal share of client errors.
-
-The chaos settings add latency and `500` errors to each `/api/terminals` request. `POST /api/chaos` replaces both values while the API runs, so you can start an incident live. `CHAOS_LATENCY_MS` and `CHAOS_ERROR_RATE` set the values at start. `make chaos-on` sets 300 ms and 20% errors. The fast burn-rate alert then fires after about 7 minutes. `make chaos-off` sets both back to 0.
-
-## Telemetry
-
-The API and the simulator send traces, metrics and logs over OTLP gRPC to `OTEL_EXPORTER_OTLP_ENDPOINT` (default `http://127.0.0.1:4317`). A trace starts in the simulator and continues in the API, down to each SQL query. Each log record carries the trace ID of its request.
-
-Until the stack is added:
-
-- In Docker, telemetry is off (`OTEL_SDK_DISABLED=true` in `docker-compose.yaml`).
-- On the host, run an OTLP collector on port 4317, or set `OTEL_SDK_DISABLED=true` in `.env`.
-
-## Development
 
 ```sh
 make test     # unit and integration tests (integration tests need Docker)
@@ -67,4 +51,4 @@ make sqlc     # regenerate the database code from the SQL queries
 make mock     # regenerate mocks
 ```
 
-`make mock` and `make lint` need [mockery](https://github.com/vektra/mockery) v3.8+ and [golangci-lint](https://golangci-lint.run) v2 built with Go 1.27 or newer. Install them with `go install`. sqlc runs through `go run` at a pinned version, so you do not need to install it.
+`make mock` and `make lint` need [mockery](https://github.com/vektra/mockery) v3.8+ and [golangci-lint](https://golangci-lint.run) v2 built with Go 1.27 or newer.
