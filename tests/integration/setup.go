@@ -44,7 +44,7 @@ func (s *ServiceIntegrationSuite) SetupSuite() {
 
 	// Start PostgreSQL container
 	container, err := postgres.Run(s.Ctx,
-		"postgres:18-alpine",
+		"postgres:19-alpine",
 		postgres.WithDatabase("testdb"),
 		postgres.WithUsername("testuser"),
 		postgres.WithPassword("testpass"),
